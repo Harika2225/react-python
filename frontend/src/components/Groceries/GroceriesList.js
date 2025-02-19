@@ -1,27 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import api from "../../api.js";
-import AddGroceriesForm from './AddGroceries.js';
+import AddGroceriesForm from "./AddGroceries.js";
+import { MdEdit, MdDelete, MdSave, MdCancel } from "react-icons/md";
+import "./styled.css";
 
 const GroceriesList = () => {
   const [groceries, setGroceries] = useState([]);
   const [editId, setEditId] = useState(null);
-  const [editName, setEditName] = useState('');
+  const [editName, setEditName] = useState("");
 
   const getGroceries = async () => {
     try {
-      const response = await api.get('/groceries');
-      console.log("API Response:", response.data);  // Log the response to check data structure
-      setGroceries(response.data || []);  // Set groceries directly from response
+      const response = await api.get("/groceries");
+      console.log("API Response:", response.data); // Log the response to check data structure
+      setGroceries(response.data || []); // Set groceries directly from response
     } catch (error) {
       console.error("Error fetching groceries", error);
-      setGroceries([]);  // Ensure groceries is always an array
+      setGroceries([]); // Ensure groceries is always an array
     }
   };
 
   const addGroceries = async (groceryName) => {
     try {
-      const response = await api.post('/groceries', { name: groceryName });
-      setGroceries([...groceries, response.data]);  // Add new grocery directly to state
+      const response = await api.post("/groceries", { name: groceryName });
+      setGroceries([...groceries, response.data]); // Add new grocery directly to state
     } catch (error) {
       console.error("Error adding grocery", error);
     }
@@ -30,9 +32,13 @@ const GroceriesList = () => {
   const updateGrocery = async (id) => {
     try {
       await api.put(`/groceries/${id}`, { name: editName });
-      setGroceries(groceries.map(grocery => grocery.id === id ? { ...grocery, name: editName } : grocery));  // Update locally
-      setEditId(null);  // Reset edit state
-      setEditName('');
+      setGroceries(
+        groceries.map((grocery) =>
+          grocery.id === id ? { ...grocery, name: editName } : grocery
+        )
+      ); // Update locally
+      setEditId(null); // Reset edit state
+      setEditName("");
     } catch (error) {
       console.error("Error updating grocery", error);
     }
@@ -41,7 +47,7 @@ const GroceriesList = () => {
   const deleteGrocery = async (id) => {
     try {
       await api.delete(`/groceries/${id}`);
-      setGroceries(groceries.filter(g => g.id !== id));  // Remove from local state
+      setGroceries(groceries.filter((g) => g.id !== id)); // Remove from local state
     } catch (error) {
       console.error("Error deleting grocery", error);
     }
@@ -66,14 +72,34 @@ const GroceriesList = () => {
                     onChange={(e) => setEditName(e.target.value)}
                     placeholder="Edit grocery name"
                   />
-                  <button onClick={() => updateGrocery(grocery.id)}>Save</button>
-                  <button onClick={() => { setEditId(null); setEditName(''); }}>Cancel</button>
+                  <span onClick={() => updateGrocery(grocery.id)}>
+                    <MdSave />
+                  </span>
+                  <span
+                    onClick={() => {
+                      setEditId(null);
+                      setEditName("");
+                    }}
+                  >
+                    <MdCancel />
+                  </span>
                 </div>
               ) : (
-                <div>
+                <div className="groceryName">
                   {grocery.name}
-                  <button onClick={() => { setEditId(grocery.id); setEditName(grocery.name); }}>Edit</button>
-                  <button onClick={() => deleteGrocery(grocery.id)}>Delete</button>
+                  <div>
+                    <span
+                      onClick={() => {
+                        setEditId(grocery.id);
+                        setEditName(grocery.name);
+                      }}
+                    >
+                      <MdEdit />
+                    </span>
+                    <span onClick={() => deleteGrocery(grocery.id)}>
+                      <MdDelete />
+                    </span>
+                  </div>
                 </div>
               )}
             </li>

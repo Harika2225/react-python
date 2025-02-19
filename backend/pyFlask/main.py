@@ -1,36 +1,43 @@
 import uvicorn
-import psycopg2
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
-# Database Connection Setup
+# Database connection string
 DATABASE_URL = "postgresql://postgres:postgres@localhost/grocery_db"
 
-try:
-    conn = psycopg2.connect(DATABASE_URL)
-    cur = conn.cursor()
-    cur.execute("SELECT version();")  # Check PostgreSQL version
-    db_version = cur.fetchone()
-    print(f"✅ Database connected successfully: {db_version[0]}")
-except Exception as e:
-    print(f"❌ Database connection failed: {str(e)}")
-    raise SystemExit(e)  # Stop execution if DB is not connected
+# SQLAlchemy setup
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-# Create table if it doesn't exist
-cur.execute("""
-    CREATE TABLE IF NOT EXISTS groceries (
-        id SERIAL PRIMARY KEY,
-        name TEXT UNIQUE NOT NULL
-    )
-""")
-conn.commit()
+# Database Model
+class GroceryDB(Base):
+    __tablename__ = "groceries"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String, index=True, nullable=False)
 
+# Create table if not exists
+Base.metadata.create_all(bind=engine)
+
+# Pydantic Models
+class Grocery(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True  # Allows ORM conversion
+
+class GroceryCreate(BaseModel):
+    name: str
+
+# FastAPI App
 app = FastAPI(debug=True)
 
+# CORS Configuration
 origins = ["http://localhost:3000"]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -39,48 +46,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class Grocery(BaseModel):
-    id: int
-    name: str
-
-class GroceryCreate(BaseModel):
-    name: str
-
-@app.get("/groceries", response_model=List[Grocery])
-def get_groceries():
-    cur.execute("SELECT id, name FROM groceries")
-    groceries = cur.fetchall()
-    return [{"id": row[0], "name": row[1]} for row in groceries]
-
-@app.post("/groceries", response_model=Grocery)
-def create_grocery(grocery: GroceryCreate):
+# Dependency for database session
+def get_db():
+    db = SessionLocal()
     try:
-        cur.execute("INSERT INTO groceries (name) VALUES (%s) RETURNING id", (grocery.name,))
-        grocery_id = cur.fetchone()[0]
-        conn.commit()
-        return {"id": grocery_id, "name": grocery.name}
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail="Grocery already exists")
+        yield db
+    finally:
+        db.close()
 
+# Get All Groceries
+@app.get("/groceries", response_model=list[Grocery])
+def get_groceries(db: Session = Depends(get_db)):
+    return db.query(GroceryDB).all()
+
+# Create a New Grocery
+@app.post("/groceries", response_model=Grocery)
+def create_grocery(grocery: GroceryCreate, db: Session = Depends(get_db)):
+    new_grocery = GroceryDB(name=grocery.name)
+    db.add(new_grocery)
+    db.commit()
+    db.refresh(new_grocery)
+    return new_grocery
+
+# Update a Grocery
 @app.put("/groceries/{grocery_id}", response_model=Grocery)
-def update_grocery(grocery_id: int, updated_grocery: GroceryCreate):
-    cur.execute("UPDATE groceries SET name = %s WHERE id = %s RETURNING id", (updated_grocery.name, grocery_id))
-    if not cur.fetchone():
-        conn.rollback()
+def update_grocery(grocery_id: int, updated_grocery: GroceryCreate, db: Session = Depends(get_db)):
+    grocery = db.query(GroceryDB).filter(GroceryDB.id == grocery_id).first()
+    if not grocery:
         raise HTTPException(status_code=404, detail="Grocery not found")
-    conn.commit()
-    return {"id": grocery_id, "name": updated_grocery.name}
+    grocery.name = updated_grocery.name
+    db.commit()
+    db.refresh(grocery)
+    return grocery
 
+# Delete a Grocery
 @app.delete("/groceries/{grocery_id}", response_model=Grocery)
-def delete_grocery(grocery_id: int):
-    cur.execute("DELETE FROM groceries WHERE id = %s RETURNING id, name", (grocery_id,))
-    deleted_grocery = cur.fetchone()
-    if not deleted_grocery:
-        conn.rollback()
+def delete_grocery(grocery_id: int, db: Session = Depends(get_db)):
+    grocery = db.query(GroceryDB).filter(GroceryDB.id == grocery_id).first()
+    if not grocery:
         raise HTTPException(status_code=404, detail="Grocery not found")
-    conn.commit()
-    return {"id": deleted_grocery[0], "name": deleted_grocery[1]}
+    db.delete(grocery)
+    db.commit()
+    return grocery
 
+# Run FastAPI server
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

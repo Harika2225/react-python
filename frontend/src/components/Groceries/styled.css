@@ -1,0 +1,28 @@
+.groceryName {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+span {
+  font-size: 18px;
+  padding-right: 10px;
+}
+input {
+  height: 32px;
+  margin-right: 10px;
+  background-color: transparent;
+  color:white;
+  width:fit-content;
+}
+
+.addGrocery{
+    display: flex;
+    flex-direction: row;
+    margin: 40px;
+}
+.addGroceryIcon{
+    font-size: 32px;
+    background-color: transparent;
+    border: none;
+    color:white;
+}

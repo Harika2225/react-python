@@ -4,9 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
+import os
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
+
+# Get database URL
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Database connection string
-DATABASE_URL = "postgresql://postgres:postgres@localhost/grocery_db"
+# DATABASE_URL = "postgresql://postgres:postgres@localhost/grocery_db"
 
 # SQLAlchemy setup
 engine = create_engine(DATABASE_URL)

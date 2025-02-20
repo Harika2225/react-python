@@ -12,6 +12,13 @@ load_dotenv()
 
 # Get database URL
 DATABASE_URL = os.getenv("DATABASE_URL")
+print(f"Database URL: {DATABASE_URL}")
+try:
+    engine = create_engine(DATABASE_URL)
+    with engine.connect() as connection:
+        print("Database connection successful!")
+except Exception as e:
+    print("Database connection failed:", e)
 
 # Database connection string
 # DATABASE_URL = "postgresql://postgres:postgres@localhost/grocery_db"

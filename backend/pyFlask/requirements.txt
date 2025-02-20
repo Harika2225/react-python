@@ -3,7 +3,7 @@ uvicorn
 pydantic
 sqlalchemy
 psycopg2-binary
-
+dotenv
 
 # fastapi → Main FastAPI framework.
 # uvicorn → ASGI server to run FastAPI.
